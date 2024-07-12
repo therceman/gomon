@@ -1,2 +1,2 @@
-# gomon
+# GoMon
 Go Monitor for Containers
