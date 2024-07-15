@@ -18,7 +18,9 @@ type Stats struct {
 }
 
 func GetStats(processName string) (Stats, error) {
-	psCmd := exec.Command("sh", "-c", fmt.Sprintf(`ps aux | grep "%s" | grep -v grep | awk '{print $2 " " $3 " " $4 " " $6}'`, processName))
+	psCmd := exec.Command("sh", "-c",
+		fmt.Sprintf(`ps aux | grep "%s" | grep -v grep | awk '{print $2 " " $3 " " $4 " " $6}'`, processName))
+
 	output, err := psCmd.Output()
 	if err != nil {
 		return Stats{}, fmt.Errorf("error executing ps command: %v", err)

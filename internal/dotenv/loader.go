@@ -1,3 +1,5 @@
+// internal/dotenv/loader.go
+
 package dotenv
 
 import (
@@ -13,7 +15,11 @@ func LoadEnv(filename string) error {
 	if err != nil {
 		return fmt.Errorf("error opening .env file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	envVars := make(map[string]string)
 	scanner := bufio.NewScanner(file)
@@ -36,7 +42,10 @@ func LoadEnv(filename string) error {
 	}
 
 	for key, value := range envVars {
-		os.Setenv(key, value)
+		err := os.Setenv(key, value)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
