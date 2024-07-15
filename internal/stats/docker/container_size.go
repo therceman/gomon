@@ -1,3 +1,5 @@
+// internal/stats/docker/container_size.go
+
 package docker
 
 import (
@@ -16,7 +18,7 @@ type ContainerInfo struct {
 	Size string `json:"Size"`
 }
 
-func GetContainerSize(containerID string, virtual bool) (float64, error) {
+func GetContainerSize(containerID string, virtual bool) (float32, error) {
 	cmd := exec.Command("docker", "ps", "--format", "{{json .}}")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -36,10 +38,10 @@ func GetContainerSize(containerID string, virtual bool) (float64, error) {
 		if containerInfo.ID == containerID {
 			sizeStr := containerInfo.Size
 			if virtual {
-				re := regexp.MustCompile(`\(virtual ([^\)]+)\)`)
+				re := regexp.MustCompile(`(virtual ([^)]+))`)
 				matches := re.FindStringSubmatch(sizeStr)
-				if len(matches) > 1 {
-					sizeStr = matches[1]
+				if len(matches) > 2 {
+					sizeStr = matches[2]
 				} else {
 					return 0, fmt.Errorf("virtual size not found for container %s", containerID)
 				}

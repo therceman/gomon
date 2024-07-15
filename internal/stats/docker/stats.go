@@ -1,3 +1,5 @@
+// internal/stats/docker/stats.go
+
 package docker
 
 import (
@@ -11,23 +13,42 @@ import (
 	"github.com/therceman/gomon/internal/utils"
 )
 
-type DockerStats struct {
+type Stats struct {
 	ID      string  `json:"id"`
 	Name    string  `json:"name"`
-	CPU     float64 `json:"cpu"`
-	Mem     float64 `json:"mem"`
-	MemPerc float64 `json:"mem_perc"`
-	NetI    float64 `json:"net_i"`
-	NetO    float64 `json:"net_o"`
-	BlockI  float64 `json:"block_i"`
-	BlockO  float64 `json:"block_o"`
+	CPU     float32 `json:"cpu"`
+	MemMB   float32 `json:"mem"`
+	MemPerc float32 `json:"mem_perc"`
+	NetI    float32 `json:"net_i"`
+	NetO    float32 `json:"net_o"`
+	BlockI  float32 `json:"block_i"`
+	BlockO  float32 `json:"block_o"`
 	PIDs    int     `json:"pids"`
-	Size    float64 `json:"size"`
+	SizeMB  float32 `json:"size"`
 }
 
-func parseDockerStatsOutput(output string) ([]DockerStats, error) {
+func GetStats() ([]Stats, error) {
+	cmd := exec.Command("docker", "stats", "--no-stream")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	output := out.String()
+
+	stats, err := parseDockerStatsOutput(output)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure we do not hold on to memory longer than needed
+	out.Reset()
+	return stats, nil
+}
+
+func parseDockerStatsOutput(output string) ([]Stats, error) {
 	scanner := bufio.NewScanner(strings.NewReader(output))
-	var stats []DockerStats
+	var stats []Stats
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "CONTAINER ID") {
@@ -66,7 +87,7 @@ func parseDockerStatsOutput(output string) ([]DockerStats, error) {
 
 		cpuUsage, err := utils.ConvertToPerc(fields[2])
 		if err != nil {
-			log.Printf("Error parsing CPU usage: %v", err)
+			log.Printf("Error parsing CPUPerc usage: %v", err)
 			continue
 		}
 
@@ -94,39 +115,20 @@ func parseDockerStatsOutput(output string) ([]DockerStats, error) {
 			continue
 		}
 
-		stat := DockerStats{
+		stat := Stats{
 			ID:      fields[0],
 			Name:    fields[1],
 			CPU:     utils.RoundToTwoDecimal(cpuUsage),
-			Mem:     utils.RoundToTwoDecimal(memUsage),
+			MemMB:   utils.RoundToTwoDecimal(memUsage),
 			MemPerc: utils.RoundToTwoDecimal(memPerc),
 			NetI:    utils.RoundToTwoDecimal(netI),
 			NetO:    utils.RoundToTwoDecimal(netO),
 			BlockI:  utils.RoundToTwoDecimal(blockI),
 			BlockO:  utils.RoundToTwoDecimal(blockO),
 			PIDs:    pids,
-			Size:    utils.RoundToTwoDecimal(containerSize),
+			SizeMB:  utils.RoundToTwoDecimal(containerSize),
 		}
 		stats = append(stats, stat)
 	}
-	return stats, nil
-}
-
-func GetStats() ([]DockerStats, error) {
-	cmd := exec.Command("docker", "stats", "--no-stream")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return nil, err
-	}
-	output := out.String()
-
-	stats, err := parseDockerStatsOutput(output)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure we do not hold on to memory longer than needed
-	out.Reset()
 	return stats, nil
 }
