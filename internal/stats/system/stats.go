@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/therceman/gomon/internal/utils"
+	"github.com/therceman/gomon/internal/helpers"
 )
 
 // Stats holds combined metrics for system resources
@@ -106,7 +106,7 @@ func getMemStats() (memStats, error) {
 
 	return memStats{
 		Used:        uint32(used / 1024), // Convert KB to MB
-		UsedPercent: utils.RoundToTwoDecimal(usedPercent),
+		UsedPercent: helpers.RoundToTwoDecimal(usedPercent),
 	}, nil
 }
 
@@ -136,7 +136,7 @@ func getCPUStats() (cpuStats, error) {
 	cpuUsage := (1.0 - (idleTicks / totalTicks)) * 100
 
 	return cpuStats{
-		CPUUsagePercent: utils.RoundToTwoDecimal(cpuUsage),
+		CPUUsagePercent: helpers.RoundToTwoDecimal(cpuUsage),
 	}, nil
 }
 
@@ -199,6 +199,6 @@ func getDiskStats(path string) (diskStats, error) {
 
 	return diskStats{
 		Used:     uint32(used / 1024 / 1024), // Convert KB to MB
-		UsedPerc: utils.RoundToTwoDecimal(usedPerc),
+		UsedPerc: helpers.RoundToTwoDecimal(usedPerc),
 	}, nil
 }

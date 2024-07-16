@@ -1,6 +1,6 @@
-// internal/utils/converter.go
+// internal/helpers/converter.go
 
-package utils
+package helpers
 
 import (
 	"fmt"
@@ -11,28 +11,70 @@ import (
 // -------- Convert Uint64 to Uint*
 
 // ConvertUint64toUint8 ensures the value fits within the range of uint8.
+func _(value uint64) uint8 {
+	if value > 255 {
+		return 255
+	}
+	return uint8(value)
+}
 
 // ConvertUint64toUint16 ensures the value fits within the range of uint16.
+func _(value uint64) uint16 {
+	if value > 65535 {
+		return 65535
+	}
+	return uint16(value)
+}
 
 // ConvertUint64toUint32 ensures the value fits within the range of uint32.
+func _(value uint64) uint32 {
+	if value > 4294967295 {
+		return 4294967295
+	}
+	return uint32(value)
+}
 
 // --------- Convert Uint32 to Uint*
 
 // ConvertUint32toUint8 ensures the value fits within the range of uint8.
+func _(value uint32) uint8 {
+	if value > 255 {
+		return 255
+	}
+	return uint8(value)
+}
 
 // ConvertUint32toUint16 ensures the value fits within the range of uint16.
+func _(value uint32) uint16 {
+	if value > 65535 {
+		return 65535
+	}
+	return uint16(value)
+}
 
 // ConvertUint32toUint64 simply converts the value to uint64.
+func _(value uint32) uint64 {
+	return uint64(value) // No limit needed for uint64
+}
 
 // --------- Convert String to Uint*
 
-// ConvertStringToUint32 converts a string to uint32, ensuring it fits within the range of uint32.
+// ConvertStringToUint32 converts a string to uint32
 func ConvertStringToUint32(s string) (uint32, error) {
 	value, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		return 0, err
 	}
 	return uint32(value), nil
+}
+
+// ConvertStringToUint16 converts a string to uint16
+func ConvertStringToUint16(s string) (uint16, error) {
+	value, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0, err
+	}
+	return uint16(value), nil
 }
 
 // ConvertStringToUint64 converts a string to uint64.

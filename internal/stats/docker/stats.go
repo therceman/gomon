@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/therceman/gomon/internal/utils"
+	"github.com/therceman/gomon/internal/helpers"
 )
 
 type Stats struct {
@@ -61,43 +61,43 @@ func parseDockerStatsOutput(output string) ([]Stats, error) {
 			continue // Skip incomplete lines
 		}
 
-		netI, err := utils.ConvertSizeToMB(fields[7])
+		netI, err := helpers.ConvertSizeToMB(fields[7])
 		if err != nil {
 			log.Printf("Error converting Net I: %v", err)
 			continue
 		}
 
-		netO, err := utils.ConvertSizeToMB(fields[9])
+		netO, err := helpers.ConvertSizeToMB(fields[9])
 		if err != nil {
 			log.Printf("Error converting Net O: %v", err)
 			continue
 		}
 
-		blockI, err := utils.ConvertSizeToMB(fields[10])
+		blockI, err := helpers.ConvertSizeToMB(fields[10])
 		if err != nil {
 			log.Printf("Error converting Block I: %v", err)
 			continue
 		}
 
-		blockO, err := utils.ConvertSizeToMB(fields[12])
+		blockO, err := helpers.ConvertSizeToMB(fields[12])
 		if err != nil {
 			log.Printf("Error converting Block O: %v", err)
 			continue
 		}
 
-		cpuUsage, err := utils.ConvertToPerc(fields[2])
+		cpuUsage, err := helpers.ConvertToPerc(fields[2])
 		if err != nil {
 			log.Printf("Error parsing CPUPerc usage: %v", err)
 			continue
 		}
 
-		memUsage, err := utils.ConvertMemoryToMB(fields[3])
+		memUsage, err := helpers.ConvertMemoryToMB(fields[3])
 		if err != nil {
 			log.Printf("Error parsing memory usage: %v", err)
 			continue
 		}
 
-		memPerc, err := utils.ConvertToPerc(fields[6])
+		memPerc, err := helpers.ConvertToPerc(fields[6])
 		if err != nil {
 			log.Printf("Error parsing memory percent: %v", err)
 			continue
@@ -118,15 +118,15 @@ func parseDockerStatsOutput(output string) ([]Stats, error) {
 		stat := Stats{
 			ID:      fields[0],
 			Name:    fields[1],
-			CPU:     utils.RoundToTwoDecimal(cpuUsage),
-			MemMB:   utils.RoundToTwoDecimal(memUsage),
-			MemPerc: utils.RoundToTwoDecimal(memPerc),
-			NetI:    utils.RoundToTwoDecimal(netI),
-			NetO:    utils.RoundToTwoDecimal(netO),
-			BlockI:  utils.RoundToTwoDecimal(blockI),
-			BlockO:  utils.RoundToTwoDecimal(blockO),
+			CPU:     helpers.RoundToTwoDecimal(cpuUsage),
+			MemMB:   helpers.RoundToTwoDecimal(memUsage),
+			MemPerc: helpers.RoundToTwoDecimal(memPerc),
+			NetI:    helpers.RoundToTwoDecimal(netI),
+			NetO:    helpers.RoundToTwoDecimal(netO),
+			BlockI:  helpers.RoundToTwoDecimal(blockI),
+			BlockO:  helpers.RoundToTwoDecimal(blockO),
 			PIDs:    pids,
-			SizeMB:  utils.RoundToTwoDecimal(containerSize),
+			SizeMB:  helpers.RoundToTwoDecimal(containerSize),
 		}
 		stats = append(stats, stat)
 	}

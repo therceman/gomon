@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/therceman/gomon/internal/utils"
+	"github.com/therceman/gomon/internal/helpers"
 )
 
 type ContainerInfo struct {
@@ -54,7 +54,7 @@ func GetContainerSize(containerID string, virtual bool) (float32, error) {
 				}
 			}
 
-			size, err := utils.ConvertSizeToMB(sizeStr)
+			size, err := helpers.ConvertSizeToMB(sizeStr)
 			if err != nil {
 				return 0, err
 			}

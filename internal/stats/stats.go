@@ -3,49 +3,34 @@
 package stats
 
 import (
+	"log"
+
+	"github.com/therceman/gomon/internal/helpers"
+	"github.com/therceman/gomon/internal/sender/grafana"
 	"github.com/therceman/gomon/internal/stats/docker"
 	"github.com/therceman/gomon/internal/stats/system"
 	"github.com/therceman/gomon/internal/stats/worker"
-	"github.com/therceman/gomon/internal/utils"
-	"log"
+	"github.com/therceman/gomon/internal/types"
 )
 
-type Stats struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	CPUMaxPerc   float32 `json:"cpu_max_perc"`
-	CPUMinPerc   float32 `json:"cpu_min_perc"`
-	CPUAvgPerc   float32 `json:"cpu_avg_perc"`
-	CPUPercSum   float32 `json:"-"` // Used for calculating average
-	CPUCount     int     `json:"-"` // Used for calculating average
-	MemMaxMB     float32 `json:"mem_max_mb"`
-	MemMinMB     float32 `json:"mem_min_mb"`
-	MemAvgMB     float32 `json:"mem_avg_mb"`
-	MemMBPercSum float32 `json:"-"` // Used for calculating average
-	MemCount     int     `json:"-"` // Used for calculating average
-	MemMaxPerc   float32 `json:"mem_max_perc"`
-	MemMinPerc   float32 `json:"mem_min_perc"`
-	MemAvgPerc   float32 `json:"mem_avg_perc"`
-	MemPercSum   float32 `json:"-"` // Used for calculating average
-	MemPercCount int     `json:"-"` // Used for calculating average
-	DiskMB       float32 `json:"disk_mb"`
-}
-
-func FlushStats(statsMap map[string]*Stats) {
+func FlushStats(statsMap map[string]*types.Stats, config types.Config) {
 	log.Println("Flushing stats map")
 
-	for _, value := range statsMap {
-		// Log only the desired fields
-		log.Printf(
-			"ID: %s, Name: %s, CPUMaxPerc: %.2f, CPUAveragePerc: %.2f, "+
-				"MemMaxMB: %.2f, MemAverageMB: %.2f, MemMaxPerc: %.2f, MemAveragePerc: %.2f, DiskMB: %.2f\n",
-			value.ID, value.Name, value.CPUMaxPerc, value.CPUAvgPerc, value.MemMaxMB, value.MemAvgMB,
-			value.MemMaxPerc, value.MemAvgPerc, value.DiskMB)
+	for _, stat := range statsMap {
+		data := grafana.PrepareInfluxData(config.MetricKeys, config.ContainerName, *stat)
+		log.Printf("data: %v\n", data)
+
+		//err := grafana.SendToInflux(types.GrafanaInfluxURL, types.GrafanaUsername, types.GrafanaAPIKey, data)
+		//if err != nil {
+		//	log.Printf("Error sending data to InfluxDB: %v", err)
+		//} else {
+		//	log.Println("Metrics pushed successfully to InfluxDB")
+		//}
 	}
 }
 
 // FetchDockerStats fetches and updates Docker stats
-func FetchDockerStats(statsMap map[string]*Stats) error {
+func FetchDockerStats(statsMap map[string]*types.Stats) error {
 	dockerStats, err := docker.GetStats()
 	if err != nil {
 		return err
@@ -64,7 +49,7 @@ func FetchDockerStats(statsMap map[string]*Stats) error {
 			// Update CPU average
 			existing.CPUPercSum += stat.CPU
 			existing.CPUCount++
-			existing.CPUAvgPerc = utils.RoundToTwoDecimal(existing.CPUPercSum / float32(existing.CPUCount))
+			existing.CPUAvgPerc = helpers.RoundToTwoDecimal(existing.CPUPercSum / float32(existing.CPUCount))
 
 			// Update Memory usage in MB
 			if stat.MemMB < existing.MemMinMB {
@@ -77,7 +62,7 @@ func FetchDockerStats(statsMap map[string]*Stats) error {
 			// Update Memory average
 			existing.MemMBPercSum += stat.MemMB
 			existing.MemCount++
-			existing.MemAvgMB = utils.RoundToTwoDecimal(existing.MemMBPercSum / float32(existing.MemCount))
+			existing.MemAvgMB = helpers.RoundToTwoDecimal(existing.MemMBPercSum / float32(existing.MemCount))
 
 			// Update Memory percentages
 			if stat.MemPerc < existing.MemMinPerc {
@@ -90,14 +75,15 @@ func FetchDockerStats(statsMap map[string]*Stats) error {
 			// Update Memory percentage average
 			existing.MemPercSum += stat.MemPerc
 			existing.MemPercCount++
-			existing.MemAvgPerc = utils.RoundToTwoDecimal(existing.MemPercSum / float32(existing.MemPercCount))
+			existing.MemAvgPerc = helpers.RoundToTwoDecimal(existing.MemPercSum / float32(existing.MemPercCount))
 
 			// Update Disk usage
 			existing.DiskMB = stat.SizeMB
 		} else {
-			statsMap[stat.ID] = &Stats{
+			statsMap[stat.ID] = &types.Stats{
 				ID:           stat.ID,
 				Name:         stat.Name,
+				Group:        "docker",
 				CPUMinPerc:   stat.CPU,
 				CPUMaxPerc:   stat.CPU,
 				CPUPercSum:   stat.CPU,
@@ -122,14 +108,14 @@ func FetchDockerStats(statsMap map[string]*Stats) error {
 }
 
 // FetchSystemStats fetches and updates system stats
-func FetchSystemStats(statsMap map[string]*Stats, containerName string) error {
+func FetchSystemStats(statsMap map[string]*types.Stats) error {
 	sysStats, err := system.GetStats()
 	if err != nil {
 		return err
 	}
 
 	ID := "system"
-	NAME := containerName
+	NAME := helpers.GetOperatingSystem()
 
 	if existing, found := statsMap[ID]; found {
 		// Update CPUPerc percentages
@@ -143,7 +129,7 @@ func FetchSystemStats(statsMap map[string]*Stats, containerName string) error {
 		// Update CPU average
 		existing.CPUPercSum += sysStats.CPUPerc
 		existing.CPUCount++
-		existing.CPUAvgPerc = utils.RoundToTwoDecimal(existing.CPUPercSum / float32(existing.CPUCount))
+		existing.CPUAvgPerc = helpers.RoundToTwoDecimal(existing.CPUPercSum / float32(existing.CPUCount))
 
 		// Update Memory usage in MB
 		if float32(sysStats.MemMB) < existing.MemMinMB {
@@ -156,7 +142,7 @@ func FetchSystemStats(statsMap map[string]*Stats, containerName string) error {
 		// Update Memory average
 		existing.MemMBPercSum += float32(sysStats.MemMB)
 		existing.MemCount++
-		existing.MemAvgMB = utils.RoundToTwoDecimal(existing.MemMBPercSum / float32(existing.MemCount))
+		existing.MemAvgMB = helpers.RoundToTwoDecimal(existing.MemMBPercSum / float32(existing.MemCount))
 
 		// Update Memory percentages
 		if sysStats.MemPerc < existing.MemMinPerc {
@@ -169,14 +155,15 @@ func FetchSystemStats(statsMap map[string]*Stats, containerName string) error {
 		// Update Memory percentage average
 		existing.MemPercSum += sysStats.MemPerc
 		existing.MemPercCount++
-		existing.MemAvgPerc = utils.RoundToTwoDecimal(existing.MemPercSum / float32(existing.MemPercCount))
+		existing.MemAvgPerc = helpers.RoundToTwoDecimal(existing.MemPercSum / float32(existing.MemPercCount))
 
 		// Update Disk usage
 		existing.DiskMB = float32(sysStats.DiskMB)
 	} else {
-		statsMap[ID] = &Stats{
+		statsMap[ID] = &types.Stats{
 			ID:           ID,
 			Name:         NAME,
+			Group:        "system",
 			CPUMinPerc:   sysStats.CPUPerc,
 			CPUMaxPerc:   sysStats.CPUPerc,
 			CPUPercSum:   sysStats.CPUPerc,
@@ -200,13 +187,13 @@ func FetchSystemStats(statsMap map[string]*Stats, containerName string) error {
 }
 
 // FetchWorkerStats fetches and updates worker stats
-func FetchWorkerStats(statsMap map[string]*Stats, processName string) error {
-	workerStats, err := worker.GetStats(processName)
+func FetchWorkerStats(statsMap map[string]*types.Stats, pidStr string, pid uint32, processName string) error {
+	workerStats, err := worker.GetStats(pidStr, pid)
 	if err != nil {
 		return err
 	}
 
-	ID := utils.ConvertUint32ToString(workerStats.PID)
+	ID := pidStr
 	NAME := processName
 
 	if existing, found := statsMap[ID]; found {
@@ -221,10 +208,10 @@ func FetchWorkerStats(statsMap map[string]*Stats, processName string) error {
 		// Update CPU average
 		existing.CPUPercSum += workerStats.CPUPerc
 		existing.CPUCount++
-		existing.CPUAvgPerc = utils.RoundToTwoDecimal(existing.CPUPercSum / float32(existing.CPUCount))
+		existing.CPUAvgPerc = helpers.RoundToTwoDecimal(existing.CPUPercSum / float32(existing.CPUCount))
 
 		// Update Memory usage in MB
-		memMB := utils.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024)
+		memMB := helpers.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024)
 		if memMB < existing.MemMinMB {
 			existing.MemMinMB = memMB
 		}
@@ -235,7 +222,7 @@ func FetchWorkerStats(statsMap map[string]*Stats, processName string) error {
 		// Update Memory average
 		existing.MemMBPercSum += memMB
 		existing.MemCount++
-		existing.MemAvgMB = utils.RoundToTwoDecimal(existing.MemMBPercSum / float32(existing.MemCount))
+		existing.MemAvgMB = helpers.RoundToTwoDecimal(existing.MemMBPercSum / float32(existing.MemCount))
 
 		// Update Memory percentages
 		if workerStats.MemPerc < existing.MemMinPerc {
@@ -248,21 +235,22 @@ func FetchWorkerStats(statsMap map[string]*Stats, processName string) error {
 		// Update Memory percentage average
 		existing.MemPercSum += workerStats.MemPerc
 		existing.MemPercCount++
-		existing.MemAvgPerc = utils.RoundToTwoDecimal(existing.MemPercSum / float32(existing.MemPercCount))
+		existing.MemAvgPerc = helpers.RoundToTwoDecimal(existing.MemPercSum / float32(existing.MemPercCount))
 	} else {
-		statsMap[ID] = &Stats{
+		statsMap[ID] = &types.Stats{
 			ID:           ID,
 			Name:         NAME,
+			Group:        "worker",
 			CPUMinPerc:   workerStats.CPUPerc,
 			CPUMaxPerc:   workerStats.CPUPerc,
 			CPUPercSum:   workerStats.CPUPerc,
 			CPUCount:     1,
 			CPUAvgPerc:   workerStats.CPUPerc,
-			MemMinMB:     utils.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
-			MemMaxMB:     utils.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
-			MemMBPercSum: utils.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
+			MemMinMB:     helpers.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
+			MemMaxMB:     helpers.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
+			MemMBPercSum: helpers.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
 			MemCount:     1,
-			MemAvgMB:     utils.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
+			MemAvgMB:     helpers.RoundToTwoDecimal(float32(workerStats.MemKB) / 1024),
 			MemMinPerc:   workerStats.MemPerc,
 			MemMaxPerc:   workerStats.MemPerc,
 			MemPercSum:   workerStats.MemPerc,
